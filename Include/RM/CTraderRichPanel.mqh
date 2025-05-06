@@ -67,8 +67,7 @@ private:
    CButton m_bSellToOpen;
 
    // private methods
-   void OnClickBuyToOpen();
-   void OnClickSellToOpen();
+   void OnClickToOpen(string);
    bool CheckInputs();
    bool CreatePanel();
 
@@ -233,11 +232,11 @@ void CTraderRichPanel::PanelChartEvent(const int id, const long &lparam, const d
    {
       if (sparam == "bBuyToOpen")
       {
-         OnClickBuyToOpen();
+         OnClickToOpen(sparam);
       }
       if (sparam == "bSellToOpen")
       {
-         OnClickSellToOpen();
+         OnClickToOpen(sparam);
       }
    }
 }
@@ -247,117 +246,40 @@ void CTraderRichPanel::PanelChartEvent(const int id, const long &lparam, const d
 //+------------------------------------------------------------------+
 
 //+------------------------------------------------------------------+
-//| Button - Buy To Open                                             |
+//| Button - Click To Open                                           |
 //+------------------------------------------------------------------+
-void CTraderRichPanel::OnClickBuyToOpen(void)
+void CTraderRichPanel::OnClickToOpen(string buttonName)
 {
-   // 1) get ask and compute initial stop-loss
-   double ask = SymbolInfoDouble(_Symbol, SYMBOL_ASK);
-   double initSL = ask - InpStopLossATRMultiple * atr.CurrentATR();
-   initSL = NormalizeDouble(initSL, (int)SymbolInfoInteger(_Symbol, SYMBOL_DIGITS));
-
-   // 2) place P1 order as BUY
-   MqlTradeRequest rq1;
-   MqlTradeResult rs1;
-   ZeroMemory(rq1);
-   ZeroMemory(rs1);
-
-   rq1.action = TRADE_ACTION_DEAL;
-   rq1.symbol = _Symbol;
-   rq1.volume = InpLotSize;
-   rq1.type = ORDER_TYPE_BUY;
-   rq1.price = ask;
-   rq1.sl = 0.0; // detach the Stop Loss from the order
-   rq1.tp = 0.0;
-   rq1.magic = InpMagicNumber;
-   rq1.deviation = 10;
-   rq1.type_filling = ORDER_FILLING_IOC;
-   rq1.type_time = ORDER_TIME_GTC;
-
-   if (!OrderSend(rq1, rs1))
-      PrintFormat("P1 BUY order failed (retcode=%d)", rs1.retcode);
-   else
+   double initSL = 0.0;
+   double price = 0.0;
+ 
+   if (buttonName == "bBuyToOpen")
    {
-      PrintFormat("P1 BUY order placed. Ticket=%I64u", rs1.order);
+      price = SymbolInfoDouble(_Symbol, SYMBOL_ASK);
+      initSL = price - InpStopLossATRMultiple * atr.CurrentATR();
+      initSL = NormalizeDouble(initSL, (int)SymbolInfoInteger(_Symbol, SYMBOL_DIGITS));
 
-      // 3) place initial PSL as a SELL_STOP
-      MqlTradeRequest rq2;
-      MqlTradeResult rs2;
-      ZeroMemory(rq2);
-      ZeroMemory(rs2);
-      rq2.action = TRADE_ACTION_PENDING;
-      rq2.symbol = _Symbol;
-      rq2.volume = InpLotSize;
-      rq2.type = ORDER_TYPE_SELL_STOP;
-      rq2.price = initSL;
-      rq2.magic = InpMagicNumber;
-      rq2.deviation = 10;
-      rq2.type_time = ORDER_TIME_GTC;
-      if (!OrderSend(rq2, rs2))
-         PrintFormat("PSL init failed (ret=%d)", rs2.retcode);
+      trade.Buy(InpLotSize, _Symbol, price, initSL, 0.0, "Button BUY P1");
+      if (trade.ResultRetcode() != TRADE_RETCODE_DONE)
+         PrintFormat("P1 BUY order failed (retcode=%d)", trade.ResultRetcode());
       else
-      {
-         g_psl_ticket = rs2.order;
-         g_cascade_count = 0;
-         PrintFormat("PSL init ticket=%I64u", g_psl_ticket);
-      }
+         PrintFormat("P1 BUY order placed. Ticket=%I64u", trade.ResultOrder());
+
    }
+   if (buttonName == "bSellToOpen")
+   {
+      price = SymbolInfoDouble(_Symbol, SYMBOL_BID);
+      initSL = price + InpStopLossATRMultiple * atr.CurrentATR();
+      initSL = NormalizeDouble(initSL, (int)SymbolInfoInteger(_Symbol, SYMBOL_DIGITS));
+
+      trade.Sell(InpLotSize, _Symbol, price, initSL, 0.0, "Button SELL P1");
+      if (trade.ResultRetcode() != TRADE_RETCODE_DONE)
+         PrintFormat("P1 SELL order failed (retcode=%d)", trade.ResultRetcode());
+      else
+         PrintFormat("P1 SELL order placed. Ticket=%I64u", trade.ResultOrder());
+
+   }
+
 }
 
-//+------------------------------------------------------------------+
-//| Button - Sell To Open                                            |
-//+------------------------------------------------------------------+
-void CTraderRichPanel::OnClickSellToOpen(void)
-{
-   // 1) get bid and compute stop-loss (above entry)
-   double bid = SymbolInfoDouble(_Symbol, SYMBOL_BID);
-   double initSL = bid + InpStopLossATRMultiple * atr.CurrentATR();
-   initSL = NormalizeDouble(initSL, (int)SymbolInfoInteger(_Symbol, SYMBOL_DIGITS));
 
-   // 2) place P1 order as SELL
-   MqlTradeRequest rq1;
-   MqlTradeResult rs1;
-   ZeroMemory(rq1);
-   ZeroMemory(rs1);
-
-   rq1.action = TRADE_ACTION_DEAL;
-   rq1.symbol = _Symbol;
-   rq1.volume = InpLotSize;
-   rq1.type = ORDER_TYPE_SELL;
-   rq1.price = bid;
-   rq1.sl = 0.0; // detach the Stop Loss from the order
-   rq1.tp = 0.0;
-   rq1.magic = InpMagicNumber;
-   rq1.deviation = 10;
-   rq1.type_filling = ORDER_FILLING_IOC;
-   rq1.type_time = ORDER_TIME_GTC;
-
-   if (!OrderSend(rq1, rs1))
-      PrintFormat("P1 SELL order failed (retcode=%d)", rs1.retcode);
-   else
-   {
-      PrintFormat("Sell order placed. Ticket=%I64u", rs1.order);
-
-      // 2) place initial PSL as a BUY_STOP
-      MqlTradeRequest rq2;
-      MqlTradeResult rs2;
-      ZeroMemory(rq2);
-      ZeroMemory(rs2);
-      rq2.action = TRADE_ACTION_PENDING;
-      rq2.symbol = _Symbol;
-      rq2.volume = InpLotSize;
-      rq2.type = ORDER_TYPE_BUY_STOP;
-      rq2.price = initSL;
-      rq2.magic = InpMagicNumber;
-      rq2.deviation = 10;
-      rq2.type_time = ORDER_TIME_GTC;
-      if (!OrderSend(rq2, rs2))
-         PrintFormat("PSL init failed (ret=%d)", rs2.retcode);
-      else
-      {
-         g_psl_ticket = rs2.order;
-         g_cascade_count = 0;
-         PrintFormat("PSL init ticket=%I64u", g_psl_ticket);
-      }
-   }
-}
