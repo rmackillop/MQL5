@@ -256,6 +256,7 @@ void CTraderRichPanel::OnClickToOpen(string buttonName)
    if (buttonName == "bBuyToOpen")
    {
       price = SymbolInfoDouble(_Symbol, SYMBOL_ASK);
+      price = NormalizeDouble(price, (int)SymbolInfoInteger(_Symbol, SYMBOL_DIGITS));
       initSL = price - InpStopLossATRMultiple * atr.CurrentATR();
       initSL = NormalizeDouble(initSL, (int)SymbolInfoInteger(_Symbol, SYMBOL_DIGITS));
 
@@ -263,12 +264,13 @@ void CTraderRichPanel::OnClickToOpen(string buttonName)
       if (trade.ResultRetcode() != TRADE_RETCODE_DONE)
          PrintFormat("P1 BUY order failed (retcode=%d)", trade.ResultRetcode());
       else
-         PrintFormat("P1 BUY order placed. Ticket=%I64u", trade.ResultOrder());
+         Print("P1 BUY order placed. Ticket=", trade.ResultOrder(), " SL=", initSL);
 
    }
    if (buttonName == "bSellToOpen")
    {
       price = SymbolInfoDouble(_Symbol, SYMBOL_BID);
+      price = NormalizeDouble(price, (int)SymbolInfoInteger(_Symbol, SYMBOL_DIGITS));
       initSL = price + InpStopLossATRMultiple * atr.CurrentATR();
       initSL = NormalizeDouble(initSL, (int)SymbolInfoInteger(_Symbol, SYMBOL_DIGITS));
 
@@ -276,7 +278,7 @@ void CTraderRichPanel::OnClickToOpen(string buttonName)
       if (trade.ResultRetcode() != TRADE_RETCODE_DONE)
          PrintFormat("P1 SELL order failed (retcode=%d)", trade.ResultRetcode());
       else
-         PrintFormat("P1 SELL order placed. Ticket=%I64u", trade.ResultOrder());
+         Print("P1 SELL order placed. Ticket=", trade.ResultOrder(), " SL=", initSL);
 
    }
 
